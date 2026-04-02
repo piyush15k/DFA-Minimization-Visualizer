@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DFA Minimizer — Visual Step-by-Step Tool</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-inner">
+        <div class="logo">
+          <span class="logo-icon">∑</span>
+          <div>
+            <h1>DFA Minimizer</h1>
+            <p class="tagline">Step-by-Step Table-Filling Visualization</p>
+          </div>
+        </div>
+        <nav class="header-nav">
+          <button class="btn-nav active" data-tab="input">① Input DFA</button>
+          <button class="btn-nav" data-tab="steps" id="tab-steps" disabled>② Algorithm Steps</button>
+          <button class="btn-nav" data-tab="result" id="tab-result" disabled>③ Minimized DFA</button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Fullscreen Overlay -->
+    <div id="fullscreen-overlay" class="fullscreen-overlay hidden">
+      <div class="fullscreen-header">
+        <span id="fullscreen-title" class="fullscreen-title">DFA Diagram</span>
+        <button class="fullscreen-close" id="btn-fullscreen-close">✕ Close</button>
+      </div>
+      <div class="fullscreen-body">
+        <canvas id="canvas-fullscreen"></canvas>
+      </div>
+    </div>
+
+    <!-- INPUT TAB -->
+    <section class="tab-panel active" id="panel-input">
+      <div class="container">
+        <div class="panel-grid">
+          <!-- Left: Form -->
+          <div class="card form-card">
+            <h2 class="card-title">Define Your DFA</h2>
+
+            <div class="field-group">
+              <label>Number of States</label>
+              <div class="state-count-row">
+                <input type="number" id="num-states" min="2" max="12" value="5" class="input-sm" />
+                <button class="btn-secondary" id="btn-generate-table">Generate Transition Table →</button>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label>Alphabet (comma-separated)</label>
+              <input type="text" id="alphabet" value="a,b" class="input-full" placeholder="e.g. a,b or 0,1" />
+            </div>
+
+            <div id="transition-table-wrap" class="transition-wrap hidden">
+              <div class="field-group">
+                <label>Transition Table</label>
+                <div id="transition-table" class="table-scroll"></div>
+              </div>
+
+              <div class="field-group">
+                <label>Start State</label>
+                <select id="start-state" class="input-sm"></select>
+              </div>
+
+              <div class="field-group">
+                <label>Accept States (click to toggle)</label>
+                <div id="accept-states" class="state-chips"></div>
+              </div>
+
+              <div class="action-row">
+                <button class="btn-outline" id="btn-load-example">Load Example</button>
+                <button class="btn-primary" id="btn-run">Run Minimization →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Instructions + Preview -->
+          <div class="side-col">
+            <div class="card info-card">
+              <h3>How It Works</h3>
+              <ol class="how-list">
+                <li><span>1</span> Define states, alphabet &amp; transitions</li>
+                <li><span>2</span> Mark accept/non-accept state pairs</li>
+                <li><span>3</span> Iteratively refine partitions</li>
+                <li><span>4</span> Merge equivalent states</li>
+                <li><span>5</span> View the minimized DFA graph</li>
+              </ol>
+            </div>
+            <div class="card algo-card">
+              <h3>Table-Filling Algorithm</h3>
+              <p>Also called the <em>Myhill-Nerode</em> method. Marks pairs of states as distinguishable, then merges all remaining (equivalent) pairs.</p>
+              <div class="complexity-tag">O(n² · |Σ|) per iteration</div>
+            </div>
+            <div id="dfa-preview-wrap" class="card graph-preview-card hidden">
+              <div class="graph-card-header">
+                <h3>Input DFA Preview</h3>
+                <button class="btn-expand" data-canvas="canvas-input" data-title="Input DFA Preview">⛶ Expand</button>
+              </div>
+              <canvas id="canvas-input" width="600" height="480"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEPS TAB -->
+    <section class="tab-panel" id="panel-steps">
+      <div class="container">
+        <div class="steps-layout">
+          <div class="steps-sidebar">
+            <div class="card">
+              <h3 class="card-title">Algorithm Progress</h3>
+              <div id="step-list" class="step-list"></div>
+              <div class="step-nav-btns">
+                <button class="btn-secondary" id="btn-prev-step" disabled>← Prev</button>
+                <button class="btn-primary" id="btn-next-step">Next →</button>
+                <button class="btn-outline" id="btn-auto-play">▶ Auto</button>
+              </div>
+            </div>
+          </div>
+          <div class="steps-main">
+            <div class="card" id="step-description-card">
+              <div class="step-badge" id="step-badge">Step 0</div>
+              <h3 id="step-title">Initialization</h3>
+              <p id="step-desc">Press Next to begin the algorithm.</p>
+            </div>
+
+            <!-- Live State Diagram -->
+            <div class="card">
+              <div class="graph-card-header">
+                <h3 class="card-title" style="margin-bottom:0;border-bottom:none;">Live State Diagram</h3>
+                <button class="btn-expand" data-canvas="canvas-steps-dfa" data-title="Live State Diagram">⛶ Expand</button>
+              </div>
+              <div class="steps-dfa-wrap">
+                <canvas id="canvas-steps-dfa" width="700" height="380"></canvas>
+                <div id="steps-dfa-legend" class="steps-dfa-legend"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3 class="card-title">Distinguishability Table</h3>
+              <div id="dist-table-wrap" class="dist-table-wrap"></div>
+            </div>
+            <div class="card">
+              <h3 class="card-title">Current Partitions</h3>
+              <div id="partitions-wrap" class="partitions-wrap"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULT TAB -->
+    <section class="tab-panel" id="panel-result">
+      <div class="container">
+        <div class="result-layout">
+          <div class="card result-stats-card">
+            <div id="stats-grid" class="stats-grid"></div>
+          </div>
+          <div class="result-graphs">
+            <div class="card graph-card">
+              <div class="graph-card-header">
+                <h3 class="card-title" style="margin-bottom:0;border-bottom:none;">Original DFA</h3>
+                <button class="btn-expand" data-canvas="canvas-original" data-title="Original DFA">⛶ Expand</button>
+              </div>
+              <canvas id="canvas-original" width="560" height="400"></canvas>
+            </div>
+            <div class="card graph-card">
+              <div class="graph-card-header">
+                <h3 class="card-title result-highlight" style="margin-bottom:0;border-bottom:none;">Minimized DFA ✦</h3>
+                <button class="btn-expand" data-canvas="canvas-minimized" data-title="Minimized DFA">⛶ Expand</button>
+              </div>
+              <canvas id="canvas-minimized" width="560" height="400"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Minimized Transition Table</h3>
+            <div id="minimized-table"></div>
+          </div>
+          <div class="result-actions">
+            <button class="btn-outline" id="btn-restart">← Start Over</button>
+            <button class="btn-primary" id="btn-export">Export as JSON</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="src/utils/dfaMinimizer.js"></script>
+  <script src="src/utils/dfaRenderer.js"></script>
+  <script src="src/components/transitionTable.js"></script>
+  <script src="src/components/stepsPanel.js"></script>
+  <script src="src/components/resultPanel.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>
