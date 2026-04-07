@@ -134,21 +134,25 @@
               <p id="step-desc">Press Next to begin the algorithm.</p>
             </div>
 
-            <!-- Live State Diagram -->
-            <div class="card">
-              <div class="graph-card-header">
-                <h3 class="card-title" style="margin-bottom:0;border-bottom:none;">Live State Diagram</h3>
-                <button class="btn-expand" data-canvas="canvas-steps-dfa" data-title="Live State Diagram">⛶ Expand</button>
+            <!-- Side-by-side: Live Diagram + Dist Table -->
+            <div class="dfa-table-row">
+              <!-- Live State Diagram -->
+              <div class="card">
+                <div class="graph-card-header">
+                  <h3 class="card-title" style="margin-bottom:0;border-bottom:none;">Live State Diagram</h3>
+                  <button class="btn-expand" data-canvas="canvas-steps-dfa" data-title="Live State Diagram">⛶ Expand</button>
+                </div>
+                <div class="steps-dfa-wrap">
+                  <canvas id="canvas-steps-dfa" width="700" height="380"></canvas>
+                  <div id="steps-dfa-legend" class="steps-dfa-legend"></div>
+                </div>
               </div>
-              <div class="steps-dfa-wrap">
-                <canvas id="canvas-steps-dfa" width="700" height="380"></canvas>
-                <div id="steps-dfa-legend" class="steps-dfa-legend"></div>
-              </div>
-            </div>
 
-            <div class="card">
-              <h3 class="card-title">Distinguishability Table</h3>
-              <div id="dist-table-wrap" class="dist-table-wrap"></div>
+              <!-- Distinguishability Table -->
+              <div class="card">
+                <h3 class="card-title">Distinguishability Table</h3>
+                <div id="dist-table-wrap" class="dist-table-wrap"></div>
+              </div>
             </div>
             <div class="card">
               <h3 class="card-title">Current Partitions</h3>

@@ -1,6 +1,11 @@
 /**
- * stepsPanel.js  — v2
- * Step-by-step panel + live animated DFA state diagram
+ * stepsPanel.js  — v3
+ * Step-by-step panel + animated live DFA state diagram
+ *
+ * Changes:
+ *  - Uses DFARenderer.animateTransition() for smooth per-step animations
+ *  - Tracks prevStatus so transitions animate from the correct prior state
+ *  - Side-by-side layout (via CSS class on parent card)
  */
 
 window.StepsPanel = (function () {
@@ -10,16 +15,20 @@ window.StepsPanel = (function () {
   let _dfa       = null;
   let _autoTimer = null;
 
-  // Animation state for the live DFA diagram
-  let _animFrame    = null;
-  let _pulseTargets = [];   // states to pulse this step
-  let _pulseStart   = 0;
+  // Track the status map from the PREVIOUS step for animation
+  let _prevStatusMap = {};
+  let _currStatusMap = {};
 
   // ── Init ────────────────────────────────────────────────────
   function init(steps, dfa) {
     _steps   = steps;
     _dfa     = dfa;
     _current = 0;
+
+    // Reset status history
+    _prevStatusMap = {};
+    _currStatusMap = {};
+    if (dfa) dfa.states.forEach(s => { _prevStatusMap[s] = 'normal'; _currStatusMap[s] = 'normal'; });
 
     const list = document.getElementById('step-list');
     list.innerHTML = '';
@@ -33,7 +42,7 @@ window.StepsPanel = (function () {
     });
 
     buildLegend();
-    renderStep(0);
+    renderStep(0, false);   // first step: no animation
     updateNavButtons();
   }
 
@@ -64,8 +73,47 @@ window.StepsPanel = (function () {
     `;
   }
 
+  // ── Compute status map for a step ───────────────────────────
+  function computeStatusMap(step) {
+    const n = _dfa.states.length;
+    const statusMap = {};
+    _dfa.states.forEach(s => { statusMap[s] = 'normal'; });
+
+    // Walk the marking table
+    const newlySet = new Set(step.newlyMarked.map(([a, b]) => `${a},${b}`));
+
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const si = _dfa.states[i], sj = _dfa.states[j];
+        const isNew    = newlySet.has(`${i},${j}`);
+        const isMarked = step.table[i][j];
+
+        if (isNew) {
+          statusMap[si] = 'new';
+          statusMap[sj] = 'new';
+        } else if (isMarked) {
+          if (statusMap[si] !== 'new') statusMap[si] = 'marked';
+          if (statusMap[sj] !== 'new') statusMap[sj] = 'marked';
+        }
+      }
+    }
+
+    // States that appear only in an equivalent (unmarked) pair get 'equiv'
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        if (!step.table[i][j]) {
+          const si = _dfa.states[i], sj = _dfa.states[j];
+          if (statusMap[si] === 'normal') statusMap[si] = 'equiv';
+          if (statusMap[sj] === 'normal') statusMap[sj] = 'equiv';
+        }
+      }
+    }
+
+    return statusMap;
+  }
+
   // ── Render one step ─────────────────────────────────────────
-  function renderStep(idx) {
+  function renderStep(idx, animate) {
     _current = idx;
     const step = _steps[idx];
     if (!step) return;
@@ -79,85 +127,44 @@ window.StepsPanel = (function () {
       el.classList.toggle('done',   i < idx);
     });
 
+    // Scroll active step into view in sidebar
+    const activeItem = document.getElementById(`step-item-${idx}`);
+    if (activeItem) activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
     renderDistTable(step);
     renderPartitions(step.partitions, step.phase === 'converged');
-    renderLiveDFA(step);
+    renderLiveDFA(step, animate !== false);
 
     updateNavButtons();
   }
 
-  // ── Live DFA diagram with per-step state coloring ───────────
-  function renderLiveDFA(step) {
-    // Cancel any running animation
-    if (_animFrame) { cancelAnimationFrame(_animFrame); _animFrame = null; }
-
+  // ── Live DFA diagram ─────────────────────────────────────────
+  function renderLiveDFA(step, animate) {
     const canvas = document.getElementById('canvas-steps-dfa');
     if (!canvas || !_dfa) return;
 
-    // Determine per-state status from the marking table
-    // States involved in newly marked pairs get a "warn" highlight
-    // States that are still equivalent (not marked with anything) get "equiv"
-    // States involved in already-marked pairs get "marked"
+    const nextStatusMap = computeStatusMap(step);
 
-    const n = _dfa.states.length;
-    const stateStatus = {}; // 'normal' | 'equiv' | 'marked' | 'new'
+    // Collect newly marked state names (not indices)
+    const newlyMarkedNames = step.newlyMarked.map(([a, b]) => [_dfa.states[a], _dfa.states[b]]).flat();
 
-    _dfa.states.forEach(s => { stateStatus[s] = 'normal'; });
-
-    // Walk the table and annotate
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        const si = _dfa.states[i], sj = _dfa.states[j];
-        const isNew = step.newlyMarked.some(([a, b]) => a === i && b === j);
-        const isMarked = step.table[i][j];
-
-        if (isNew) {
-          stateStatus[si] = 'new';
-          stateStatus[sj] = 'new';
-        } else if (isMarked && stateStatus[si] !== 'new') {
-          stateStatus[si] = 'marked';
-          stateStatus[sj] = 'marked';
-        }
-      }
+    if (animate && Object.keys(_prevStatusMap).length > 0) {
+      DFARenderer.animateTransition(
+        canvas,
+        _dfa,
+        _prevStatusMap,
+        nextStatusMap,
+        newlyMarkedNames,
+        { duration: 900 }
+      );
+    } else {
+      // Instant render (first step or jump)
+      DFARenderer.renderWithStatus(canvas, _dfa, nextStatusMap);
     }
 
-    // States that appear in an equivalent (unmarked) pair
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        if (!step.table[i][j]) {
-          const si = _dfa.states[i], sj = _dfa.states[j];
-          if (stateStatus[si] === 'normal') stateStatus[si] = 'equiv';
-          if (stateStatus[sj] === 'normal') stateStatus[sj] = 'equiv';
-        }
-      }
-    }
-
-    // Collect newly-highlighted states for pulse animation
-    _pulseTargets = _dfa.states.filter(s => stateStatus[s] === 'new');
-    _pulseStart   = performance.now();
-
-    // Static render with status colors
-    DFARenderer.renderWithStatus(canvas, _dfa, stateStatus);
-
-    // If there are newly marked states, run a brief pulse animation
-    if (_pulseTargets.length > 0) {
-      const pulseDuration = 1200; // ms
-      function animate(now) {
-        const elapsed = now - _pulseStart;
-        const t = Math.min(elapsed / pulseDuration, 1);
-        // Pulse intensity: quick rise, slow fade
-        const pulse = t < 0.3 ? t / 0.3 : 1 - (t - 0.3) / 0.7;
-        DFARenderer.renderWithStatus(canvas, _dfa, stateStatus, _pulseTargets, pulse);
-        if (t < 1) {
-          _animFrame = requestAnimationFrame(animate);
-        } else {
-          _animFrame = null;
-          // Settle to final static state
-          DFARenderer.renderWithStatus(canvas, _dfa, stateStatus);
-        }
-      }
-      _animFrame = requestAnimationFrame(animate);
-    }
+    // Update history for next transition
+    _prevStatusMap = { ...nextStatusMap };
+    _currStatusMap = nextStatusMap;
   }
 
   // ── Dist Table ──────────────────────────────────────────────
@@ -199,7 +206,7 @@ window.StepsPanel = (function () {
           if (isNew) {
             td.className   = 'cell-new-mark';
             td.textContent = '✕';
-            td.title = 'Newly marked at this step';
+            td.title       = 'Newly marked at this step';
           } else if (marked) {
             td.className   = 'cell-marked';
             td.textContent = '✕';
@@ -218,12 +225,12 @@ window.StepsPanel = (function () {
     wrap.appendChild(table);
 
     const legend = document.createElement('div');
-    legend.style.cssText = 'margin-top:12px;display:flex;gap:16px;font-size:12px;font-family:monospace;flex-wrap:wrap;';
+    legend.className = 'dist-table-legend';
     legend.innerHTML = `
       <span style="color:#ff4f7b">✕ Distinguishable</span>
       <span style="color:#ffbb00">✕ Newly Marked</span>
       <span style="color:#4fffb0">— Possibly Equivalent</span>
-      <span style="color:#555e78">· Not applicable</span>
+      <span style="color:#555e78">· N/A</span>
     `;
     wrap.appendChild(legend);
   }
@@ -258,14 +265,25 @@ window.StepsPanel = (function () {
     }
   }
 
-  // ── Nav helpers ─────────────────────────────────────────────
+  // ── Nav ──────────────────────────────────────────────────────
   function updateNavButtons() {
     document.getElementById('btn-prev-step').disabled = _current === 0;
     document.getElementById('btn-next-step').disabled = _current >= _steps.length - 1;
   }
-  function next() { if (_current < _steps.length - 1) renderStep(_current + 1); }
-  function prev() { if (_current > 0) renderStep(_current - 1); }
-  function goTo(idx) { renderStep(Math.max(0, Math.min(idx, _steps.length - 1))); }
+
+  function next() { if (_current < _steps.length - 1) renderStep(_current + 1, true); }
+  function prev() { if (_current > 0) renderStep(_current - 1, true); }
+  function goTo(idx) {
+    const clamped = Math.max(0, Math.min(idx, _steps.length - 1));
+    // When jumping, recompute prev status from the step before
+    if (clamped > 0) {
+      _prevStatusMap = computeStatusMap(_steps[clamped - 1]);
+    } else {
+      _prevStatusMap = {};
+      if (_dfa) _dfa.states.forEach(s => { _prevStatusMap[s] = 'normal'; });
+    }
+    renderStep(clamped, true);
+  }
 
   function autoPlay() {
     const btn = document.getElementById('btn-auto-play');
@@ -278,7 +296,7 @@ window.StepsPanel = (function () {
         clearInterval(_autoTimer); _autoTimer = null; btn.textContent = '▶ Auto'; return;
       }
       next();
-    }, 1600);
+    }, 1800);  // slightly longer than animation duration
   }
 
   document.getElementById('btn-next-step').addEventListener('click', next);
