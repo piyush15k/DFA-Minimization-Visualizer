@@ -1,24 +1,25 @@
 /**
- * transitionTable.js
- * Builds and manages the interactive transition table UI
+ * transitionTable.js  — v2
+ * Builds and manages the interactive transition table UI.
+ * Accept-state chip clicks now trigger a live preview refresh callback.
  */
 
 window.TransitionTableComponent = (function () {
 
-  let _states   = [];
-  let _alphabet = [];
+  let _states    = [];
+  let _alphabet  = [];
   let _acceptSet = new Set();
+  let _onChangeCallback = null;   // called whenever DFA definition changes
 
-  /**
-   * Generate state names q0..q(n-1)
-   */
   function generateStates(n) {
     return Array.from({ length: n }, (_, i) => `q${i}`);
   }
 
-  /**
-   * Build the HTML transition table
-   */
+  /** Register a callback fired on any DFA change (transitions, accept states, start) */
+  function onChange(fn) { _onChangeCallback = fn; }
+
+  function _fireChange() { if (_onChangeCallback) _onChangeCallback(); }
+
   function build(states, alphabet) {
     _states   = states;
     _alphabet = alphabet;
@@ -29,7 +30,6 @@ window.TransitionTableComponent = (function () {
     const table = document.createElement('table');
     table.className = 'dfa-table';
 
-    // Header
     const thead = document.createElement('thead');
     const hr    = document.createElement('tr');
     ['State', ...alphabet].forEach(h => {
@@ -40,18 +40,14 @@ window.TransitionTableComponent = (function () {
     thead.appendChild(hr);
     table.appendChild(thead);
 
-    // Body
     const tbody = document.createElement('tbody');
     states.forEach(s => {
       const tr = document.createElement('tr');
-
-      // State label cell
       const labelTd = document.createElement('td');
-      labelTd.className  = 'state-label';
+      labelTd.className   = 'state-label';
       labelTd.textContent = s;
       tr.appendChild(labelTd);
 
-      // Transition input cells
       alphabet.forEach(sym => {
         const td    = document.createElement('td');
         const input = document.createElement('input');
@@ -61,16 +57,16 @@ window.TransitionTableComponent = (function () {
         input.placeholder = '—';
         input.maxLength   = 4;
         input.value       = '';
+        input.addEventListener('input', _fireChange);
         td.appendChild(input);
         tr.appendChild(td);
       });
-
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
     wrap.appendChild(table);
 
-    // Update start state dropdown
+    // Start state dropdown
     const sel = document.getElementById('start-state');
     sel.innerHTML = '';
     states.forEach(s => {
@@ -78,23 +74,22 @@ window.TransitionTableComponent = (function () {
       opt.value = opt.textContent = s;
       sel.appendChild(opt);
     });
+    sel.addEventListener('change', _fireChange);
 
-    // Update accept state chips
+    // Accept state chips — fire change on every toggle
     _acceptSet.clear();
     const chips = document.getElementById('accept-states');
     chips.innerHTML = '';
     states.forEach(s => {
       const chip = document.createElement('div');
-      chip.className   = 'state-chip';
-      chip.textContent = s;
+      chip.className    = 'state-chip';
+      chip.textContent  = s;
       chip.dataset.state = s;
       chip.addEventListener('click', () => {
         chip.classList.toggle('accept');
-        if (chip.classList.contains('accept')) {
-          _acceptSet.add(s);
-        } else {
-          _acceptSet.delete(s);
-        }
+        if (chip.classList.contains('accept')) { _acceptSet.add(s); }
+        else { _acceptSet.delete(s); }
+        _fireChange();   // ← live preview update on accept toggle
       });
       chips.appendChild(chip);
     });
@@ -102,9 +97,6 @@ window.TransitionTableComponent = (function () {
     document.getElementById('transition-table-wrap').classList.remove('hidden');
   }
 
-  /**
-   * Read current DFA definition from form
-   */
   function read() {
     const transitions = {};
     let allFilled = true;
@@ -128,14 +120,9 @@ window.TransitionTableComponent = (function () {
     };
   }
 
-  /**
-   * Populate the table with a preset DFA
-   */
   function load(dfa) {
-    // First rebuild structure
     build(dfa.states, dfa.alphabet);
 
-    // Fill values
     dfa.states.forEach(s => {
       dfa.alphabet.forEach(sym => {
         const el = document.getElementById(`trans-${s}-${sym}`);
@@ -143,25 +130,19 @@ window.TransitionTableComponent = (function () {
       });
     });
 
-    // Set start
     const sel = document.getElementById('start-state');
     if (sel) sel.value = dfa.startState;
 
-    // Set accept
     _acceptSet = new Set(dfa.acceptStates);
     document.querySelectorAll('.state-chip').forEach(chip => {
-      const s = chip.dataset.state;
-      if (_acceptSet.has(s)) {
-        chip.classList.add('accept');
-      } else {
-        chip.classList.remove('accept');
-      }
+      chip.classList.toggle('accept', _acceptSet.has(chip.dataset.state));
     });
 
-    // Update num-states & alphabet inputs
     document.getElementById('num-states').value = dfa.states.length;
     document.getElementById('alphabet').value    = dfa.alphabet.join(',');
+
+    _fireChange();
   }
 
-  return { generateStates, build, read, load };
+  return { generateStates, build, read, load, onChange };
 })();

@@ -10,7 +10,8 @@
 </head>
 <body>
   <div id="app">
-    <!-- Header -->
+
+    <!-- ── Header ── -->
     <header class="header">
       <div class="header-inner">
         <div class="logo">
@@ -28,7 +29,7 @@
       </div>
     </header>
 
-    <!-- Fullscreen Overlay -->
+    <!-- ── Fullscreen Overlay ── -->
     <div id="fullscreen-overlay" class="fullscreen-overlay hidden">
       <div class="fullscreen-header">
         <span id="fullscreen-title" class="fullscreen-title">DFA Diagram</span>
@@ -39,51 +40,94 @@
       </div>
     </div>
 
-    <!-- INPUT TAB -->
+    <!-- ══════════════════════════════════════════════════════════
+         INPUT TAB
+    ══════════════════════════════════════════════════════════════ -->
     <section class="tab-panel active" id="panel-input">
       <div class="container">
         <div class="panel-grid">
+
           <!-- Left: Form -->
           <div class="card form-card">
             <h2 class="card-title">Define Your DFA</h2>
 
-            <div class="field-group">
-              <label>Number of States</label>
-              <div class="state-count-row">
-                <input type="number" id="num-states" min="2" max="12" value="5" class="input-sm" />
-                <button class="btn-secondary" id="btn-generate-table">Generate Transition Table →</button>
+            <!-- Input Mode Switcher -->
+            <div class="input-mode-bar">
+              <button class="btn-mode active" id="btn-mode-table" data-mode="table">⊞ Transition Table</button>
+              <button class="btn-mode" id="btn-mode-regex" data-mode="regex">Σ* Regular Expression</button>
+            </div>
+
+            <!-- ── TABLE MODE ── -->
+            <div id="mode-table">
+              <div class="field-group">
+                <label>Number of States</label>
+                <div class="state-count-row">
+                  <input type="number" id="num-states" min="2" max="12" value="5" class="input-sm" />
+                  <button class="btn-secondary" id="btn-generate-table">Generate Table →</button>
+                </div>
+              </div>
+              <div class="field-group">
+                <label>Alphabet (comma-separated)</label>
+                <input type="text" id="alphabet" value="a,b" class="input-full" placeholder="e.g. a,b or 0,1" />
+              </div>
+              <div id="transition-table-wrap" class="transition-wrap hidden">
+                <div class="field-group">
+                  <label>Transition Table</label>
+                  <div id="transition-table" class="table-scroll"></div>
+                </div>
+                <div class="field-group">
+                  <label>Start State</label>
+                  <select id="start-state" class="input-sm"></select>
+                </div>
+                <div class="field-group">
+                  <label>Accept States (click to toggle)</label>
+                  <div id="accept-states" class="state-chips"></div>
+                </div>
+                <div class="action-row">
+                  <button class="btn-outline" id="btn-load-example">Load Example</button>
+                  <button class="btn-primary" id="btn-run">Run Minimization →</button>
+                </div>
               </div>
             </div>
 
-            <div class="field-group">
-              <label>Alphabet (comma-separated)</label>
-              <input type="text" id="alphabet" value="a,b" class="input-full" placeholder="e.g. a,b or 0,1" />
-            </div>
-
-            <div id="transition-table-wrap" class="transition-wrap hidden">
-              <div class="field-group">
-                <label>Transition Table</label>
-                <div id="transition-table" class="table-scroll"></div>
+            <!-- ── REGEX MODE ── -->
+            <div id="mode-regex" class="hidden">
+              <div class="regex-info-box">
+                <div class="regex-info-icon">ℹ</div>
+                <div>
+                  <strong>Regular Expression → DFA</strong>
+                  <p>Enter a regex. The tool will convert it to a DFA via subset construction, then minimize it.</p>
+                </div>
               </div>
-
               <div class="field-group">
-                <label>Start State</label>
-                <select id="start-state" class="input-sm"></select>
+                <label>Regular Expression</label>
+                <div class="regex-input-row">
+                  <input type="text" id="regex-input" class="input-full" placeholder="e.g.  (a|b)*abb  or  a*b+" />
+                  <button class="btn-secondary" id="btn-regex-parse">Parse →</button>
+                </div>
+                <div class="regex-syntax-hint">
+                  Supported: <code>a</code> literals · <code>|</code> union · <code>·</code> concat · <code>*</code> Kleene · <code>+</code> one-or-more · <code>?</code> optional · <code>()</code> grouping
+                </div>
               </div>
-
-              <div class="field-group">
-                <label>Accept States (click to toggle)</label>
-                <div id="accept-states" class="state-chips"></div>
+              <div id="regex-alphabet-row" class="field-group hidden">
+                <label>Detected Alphabet</label>
+                <div id="regex-detected-alpha" class="regex-alpha-chips"></div>
               </div>
-
-              <div class="action-row">
-                <button class="btn-outline" id="btn-load-example">Load Example</button>
-                <button class="btn-primary" id="btn-run">Run Minimization →</button>
+              <div id="regex-error" class="regex-error hidden"></div>
+              <div id="regex-dfa-preview" class="regex-dfa-preview hidden">
+                <div class="regex-dfa-header">
+                  <span class="regex-dfa-label">Generated DFA</span>
+                  <span id="regex-dfa-stats" class="regex-dfa-stats"></span>
+                </div>
+                <div id="regex-dfa-table" class="table-scroll"></div>
+                <div class="action-row">
+                  <button class="btn-primary" id="btn-regex-run">Run Minimization →</button>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Right: Instructions + Preview -->
+          <!-- Right: Info + Preview -->
           <div class="side-col">
             <div class="card info-card">
               <h3>How It Works</h3>
@@ -112,14 +156,30 @@
       </div>
     </section>
 
-    <!-- STEPS TAB -->
+    <!-- ══════════════════════════════════════════════════════════
+         STEPS TAB
+    ══════════════════════════════════════════════════════════════ -->
     <section class="tab-panel" id="panel-steps">
       <div class="container">
         <div class="steps-layout">
+
+          <!-- Sidebar -->
           <div class="steps-sidebar">
             <div class="card">
               <h3 class="card-title">Algorithm Progress</h3>
               <div id="step-list" class="step-list"></div>
+
+              <!-- Speed Control -->
+              <div class="speed-control">
+                <label class="speed-label">Auto Speed</label>
+                <div class="speed-btns">
+                  <button class="btn-speed active" data-ms="2400">0.5×</button>
+                  <button class="btn-speed" data-ms="1600">1×</button>
+                  <button class="btn-speed" data-ms="800">2×</button>
+                  <button class="btn-speed" data-ms="400">4×</button>
+                </div>
+              </div>
+
               <div class="step-nav-btns">
                 <button class="btn-secondary" id="btn-prev-step" disabled>← Prev</button>
                 <button class="btn-primary" id="btn-next-step">Next →</button>
@@ -127,6 +187,8 @@
               </div>
             </div>
           </div>
+
+          <!-- Main content -->
           <div class="steps-main">
             <div class="card" id="step-description-card">
               <div class="step-badge" id="step-badge">Step 0</div>
@@ -134,36 +196,43 @@
               <p id="step-desc">Press Next to begin the algorithm.</p>
             </div>
 
-            <!-- Side-by-side: Live Diagram + Dist Table -->
-            <div class="dfa-table-row">
-              <!-- Live State Diagram -->
-              <div class="card">
+            <!-- Row 1: Live State Diagram + Distinguishability Table side by side -->
+            <div class="steps-row-split">
+              <div class="card steps-split-left">
                 <div class="graph-card-header">
                   <h3 class="card-title" style="margin-bottom:0;border-bottom:none;">Live State Diagram</h3>
                   <button class="btn-expand" data-canvas="canvas-steps-dfa" data-title="Live State Diagram">⛶ Expand</button>
                 </div>
                 <div class="steps-dfa-wrap">
-                  <canvas id="canvas-steps-dfa" width="700" height="380"></canvas>
+                  <canvas id="canvas-steps-dfa" width="520" height="360"></canvas>
                   <div id="steps-dfa-legend" class="steps-dfa-legend"></div>
                 </div>
               </div>
-
-              <!-- Distinguishability Table -->
-              <div class="card">
+              <div class="card steps-split-right">
                 <h3 class="card-title">Distinguishability Table</h3>
                 <div id="dist-table-wrap" class="dist-table-wrap"></div>
               </div>
             </div>
-            <div class="card">
-              <h3 class="card-title">Current Partitions</h3>
-              <div id="partitions-wrap" class="partitions-wrap"></div>
+
+            <!-- Row 2: Merge Preview + Current Partitions side by side -->
+            <div class="steps-row-split">
+              <div class="card" id="merge-viz-card" style="display:none; flex:1; min-width:0;">
+                <h3 class="card-title">Equivalent States — Merge Preview</h3>
+                <div id="merge-viz-wrap" class="merge-viz-wrap"></div>
+              </div>
+              <div class="card steps-partitions-card">
+                <h3 class="card-title">Current Partitions</h3>
+                <div id="partitions-wrap" class="partitions-wrap"></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- RESULT TAB -->
+    <!-- ══════════════════════════════════════════════════════════
+         RESULT TAB
+    ══════════════════════════════════════════════════════════════ -->
     <section class="tab-panel" id="panel-result">
       <div class="container">
         <div class="result-layout">
@@ -197,9 +266,11 @@
         </div>
       </div>
     </section>
-  </div>
+
+  </div><!-- #app -->
 
   <script src="src/utils/dfaMinimizer.js"></script>
+  <script src="src/utils/regexToDFA.js"></script>
   <script src="src/utils/dfaRenderer.js"></script>
   <script src="src/components/transitionTable.js"></script>
   <script src="src/components/stepsPanel.js"></script>
