@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DFA Minimizer — Visual Step-by-Step Tool</title>
   <link rel="stylesheet" href="src/styles/main.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap"
+    rel="stylesheet" />
 </head>
+
 <body>
   <div id="app">
 
@@ -106,7 +110,8 @@
                   <button class="btn-secondary" id="btn-regex-parse">Parse →</button>
                 </div>
                 <div class="regex-syntax-hint">
-                  Supported: <code>a</code> literals · <code>|</code> union · <code>·</code> concat · <code>*</code> Kleene · <code>+</code> one-or-more · <code>?</code> optional · <code>()</code> grouping
+                  Supported: <code>a</code> literals · <code>|</code> union · <code>·</code> concat · <code>*</code>
+                  Kleene · <code>+</code> one-or-more · <code>?</code> optional · <code>()</code> grouping
                 </div>
               </div>
               <div id="regex-alphabet-row" class="field-group hidden">
@@ -141,7 +146,8 @@
             </div>
             <div class="card algo-card">
               <h3>Table-Filling Algorithm</h3>
-              <p>Also called the <em>Myhill-Nerode</em> method. Marks pairs of states as distinguishable, then merges all remaining (equivalent) pairs.</p>
+              <p>Also called the <em>Myhill-Nerode</em> method. Marks pairs of states as distinguishable, then merges
+                all remaining (equivalent) pairs.</p>
               <div class="complexity-tag">O(n² · |Σ|) per iteration</div>
             </div>
             <div id="dfa-preview-wrap" class="card graph-preview-card hidden">
@@ -196,17 +202,11 @@
               <p id="step-desc">Press Next to begin the algorithm.</p>
             </div>
 
-            <!-- Row 1: Live State Diagram + Distinguishability Table side by side -->
+            <!-- Row 1: Current Merged Transition Table + Distinguishability Table side by side -->
             <div class="steps-row-split">
-              <div class="card steps-split-left">
-                <div class="graph-card-header">
-                  <h3 class="card-title" style="margin-bottom:0;border-bottom:none;">Live State Diagram</h3>
-                  <button class="btn-expand" data-canvas="canvas-steps-dfa" data-title="Live State Diagram">⛶ Expand</button>
-                </div>
-                <div class="steps-dfa-wrap">
-                  <canvas id="canvas-steps-dfa" width="520" height="360"></canvas>
-                  <div id="steps-dfa-legend" class="steps-dfa-legend"></div>
-                </div>
+              <div class="card" id="merge-viz-card" style="flex:1; min-width:0;">
+                <h3 class="card-title">Current Merged Transition Table</h3>
+                <div id="merge-viz-wrap" class="merge-viz-wrap"></div>
               </div>
               <div class="card steps-split-right">
                 <h3 class="card-title">Distinguishability Table</h3>
@@ -214,16 +214,10 @@
               </div>
             </div>
 
-            <!-- Row 2: Merge Preview + Current Partitions side by side -->
-            <div class="steps-row-split">
-              <div class="card" id="merge-viz-card" style="flex:1; min-width:0;">
-                <h3 class="card-title">Current Merged Transition Table</h3>
-                <div id="merge-viz-wrap" class="merge-viz-wrap"></div>
-              </div>
-              <div class="card steps-partitions-card">
-                <h3 class="card-title">Current Partitions</h3>
-                <div id="partitions-wrap" class="partitions-wrap"></div>
-              </div>
+            <!-- Row 2: Current Partitions -->
+            <div class="card steps-partitions-card">
+              <h3 class="card-title">Current Partitions</h3>
+              <div id="partitions-wrap" class="partitions-wrap"></div>
             </div>
           </div>
         </div>
@@ -277,4 +271,5 @@
   <script src="src/components/resultPanel.js"></script>
   <script src="src/app.js"></script>
 </body>
+
 </html>

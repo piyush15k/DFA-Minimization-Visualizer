@@ -8,39 +8,38 @@
 
 window.StepsPanel = (function () {
 
-  let _steps        = [];
-  let _current      = 0;
-  let _dfa          = null;
-  let _minDFA       = null;   // minimized DFA (for final step render)
-  let _autoTimer    = null;
-  let _autoSpeedMs  = 2400;
-  let _animFrame    = null;
+  let _steps = [];
+  let _current = 0;
+  let _dfa = null;
+  let _minDFA = null;   // minimized DFA (for final step render)
+  let _autoTimer = null;
+  let _autoSpeedMs = 2400;
+  let _animFrame = null;
   let _pulseTargets = [];
-  let _pulseStart   = 0;
-  let _lastStatus   = {};
-  let _transAnimT   = 1;     // 0..1 transition animation progress
-  let _transStart   = 0;
-  let _transDur     = 600;   // ms for merge/split transition
+  let _pulseStart = 0;
+  let _lastStatus = {};
+  let _transAnimT = 1;     // 0..1 transition animation progress
+  let _transStart = 0;
+  let _transDur = 600;   // ms for merge/split transition
 
   // ── Init ────────────────────────────────────────────────────
   function init(steps, dfa, minimizedDFA) {
-    _steps   = steps;
-    _dfa     = dfa;
-    _minDFA  = minimizedDFA || null;
+    _steps = steps;
+    _dfa = dfa;
+    _minDFA = minimizedDFA || null;
     _current = 0;
 
     const list = document.getElementById('step-list');
     list.innerHTML = '';
     steps.forEach((step, i) => {
       const item = document.createElement('div');
-      item.className   = 'step-item';
-      item.id          = `step-item-${i}`;
+      item.className = 'step-item';
+      item.id = `step-item-${i}`;
       item.textContent = step.title;
       item.addEventListener('click', () => goTo(i));
       list.appendChild(item);
     });
 
-    buildLegend();
     renderStep(0);
     updateNavButtons();
   }
@@ -68,16 +67,6 @@ window.StepsPanel = (function () {
     next();
   }
 
-  // ── Legend ──────────────────────────────────────────────────
-  function buildLegend() {
-    document.getElementById('steps-dfa-legend').innerHTML = `
-      <div class="legend-item"><div class="legend-dot" style="color:#00cfff;background:rgba(0,207,255,0.15)"></div><span>Start state</span></div>
-      <div class="legend-item"><div class="legend-dot" style="color:#4fffb0;background:rgba(79,255,176,0.15)"></div><span>Merged equivalent group</span></div>
-      <div class="legend-item"><div class="legend-dot" style="color:#ff4f7b;background:rgba(255,79,123,0.15)"></div><span>Newly split apart</span></div>
-      <div class="legend-item"><div class="legend-dot" style="color:#e8ecf5;background:rgba(48,54,80,0.6)"></div><span>Individual state</span></div>
-    `;
-  }
-
   // ── Render one step ─────────────────────────────────────────
   function renderStep(idx) {
     _current = idx;
@@ -86,17 +75,16 @@ window.StepsPanel = (function () {
 
     document.getElementById('step-badge').textContent = `Step ${idx} of ${_steps.length - 1}`;
     document.getElementById('step-title').textContent = step.title;
-    document.getElementById('step-desc').textContent  = step.description;
+    document.getElementById('step-desc').textContent = step.description;
 
     document.querySelectorAll('.step-item').forEach((el, i) => {
       el.classList.toggle('active', i === idx);
-      el.classList.toggle('done',   i < idx);
+      el.classList.toggle('done', i < idx);
     });
 
     renderDistTable(step);
     renderPartitions(step.partitions, step.phase === 'converged');
     renderMergeViz(step);
-    renderLiveDFA(step);
 
     updateNavButtons();
   }
@@ -131,65 +119,6 @@ window.StepsPanel = (function () {
     return status;
   }
 
-  // ── Live DFA diagram ─────────────────────────────────────────
-  // Uses renderIntermediate to show the DFA morphing at each step:
-  // equivalence groups collapse into merged super-nodes, and as pairs
-  // get marked the super-nodes split apart with a smooth animation.
-  function renderLiveDFA(step) {
-    if (_animFrame) { cancelAnimationFrame(_animFrame); _animFrame = null; }
-
-    const canvas = document.getElementById('canvas-steps-dfa');
-    if (!canvas || !_dfa) return;
-
-    // Also keep status for fullscreen mirror (used when overlay is open)
-    _lastStatus   = computeStatus(step);
-    _pulseTargets = _dfa.states.filter(s => _lastStatus[s] === 'new');
-
-    // Animate: start at t=0 (previous layout) and ease to t=1 (new layout)
-    _transStart = performance.now();
-    _transAnimT = 0;
-
-    const hasNewlySplit = step.newlyMarked.length > 0;
-    const dur = hasNewlySplit ? _transDur : 300; // faster if no split
-
-    function animate(now) {
-      const elapsed = now - _transStart;
-      // Ease-out cubic
-      const raw = Math.min(elapsed / dur, 1);
-      _transAnimT = 1 - Math.pow(1 - raw, 3);
-
-      DFARenderer.renderIntermediate(canvas, _dfa, step, _minDFA, _transAnimT);
-      _mirrorToFullscreen();
-
-      if (raw < 1) {
-        _animFrame = requestAnimationFrame(animate);
-      } else {
-        _animFrame = null;
-        _transAnimT = 1;
-        DFARenderer.renderIntermediate(canvas, _dfa, step, _minDFA, 1);
-        _mirrorToFullscreen();
-      }
-    }
-    _animFrame = requestAnimationFrame(animate);
-  }
-
-  /** If fullscreen is open showing the steps diagram, redraw it too */
-  function _mirrorToFullscreen() {
-    const overlay = document.getElementById('fullscreen-overlay');
-    if (overlay.classList.contains('hidden')) return;
-    const fsCanvas = document.getElementById('canvas-fullscreen');
-    if (!fsCanvas || !_dfa) return;
-    const title = document.getElementById('fullscreen-title').textContent;
-    if (title !== 'Live State Diagram') return;
-    if (!fsCanvas.width || !fsCanvas.height) {
-      if (window._renderFSFrame) window._renderFSFrame();
-      return;
-    }
-    // Use the same intermediate render so fullscreen matches the inline canvas
-    const step = _steps[_current];
-    if (step) DFARenderer.renderIntermediate(fsCanvas, _dfa, step, _minDFA, _transAnimT);
-  }
-
   // ── Merge Transition Table ───────────────────────────────────
   // Shows a proper transition table for the CURRENT merged DFA:
   // each row = one equivalence group (merged state), columns = alphabet,
@@ -216,7 +145,7 @@ window.StepsPanel = (function () {
 
     // Group states by root, preserving original ordering
     const rootOrder = [];
-    const groupMap  = {};
+    const groupMap = {};
     states.forEach(s => {
       const r = find(s);
       if (!groupMap[r]) { groupMap[r] = []; rootOrder.push(r); }
@@ -236,9 +165,9 @@ window.StepsPanel = (function () {
     card.style.minWidth = '0';
     if (partitionsCard) partitionsCard.style.gridColumn = '';
 
-    const isFinal      = step.phase === 'converged';
-    const numGroups    = groups.length;
-    const hasMerges    = groups.some(g => g.length > 1);
+    const isFinal = step.phase === 'converged';
+    const numGroups = groups.length;
+    const hasMerges = groups.some(g => g.length > 1);
 
     // Newly-split states (involved in newlyMarked this step)
     const newlySplitSet = new Set();
@@ -255,10 +184,10 @@ window.StepsPanel = (function () {
 
     // Helper: which group does state s map to via symbol?
     function targetGroup(rep, sym) {
-      const tgt  = transitions[rep]?.[sym];
+      const tgt = transitions[rep]?.[sym];
       if (!tgt) return '—';
       const tRoot = find(tgt);
-      const tGrp  = groups.find(g => g.includes(tgt));
+      const tGrp = groups.find(g => g.includes(tgt));
       return tGrp ? groupName(tGrp) : tgt;
     }
 
@@ -285,7 +214,7 @@ window.StepsPanel = (function () {
 
     // Header
     const thead = document.createElement('thead');
-    const hRow  = document.createElement('tr');
+    const hRow = document.createElement('tr');
 
     // Markers column
     const thMark = document.createElement('th'); thMark.textContent = ''; hRow.appendChild(thMark);
@@ -310,24 +239,24 @@ window.StepsPanel = (function () {
 
     // Track which groups are newly split for row highlighting
     states.forEach(s => {
-      const myGroup    = groups.find(g => g.includes(s));
+      const myGroup = groups.find(g => g.includes(s));
       if (!myGroup) return;
-      const grpName    = groupName(myGroup);
-      const isStart    = s === startState;
-      const isAccept   = acceptSet.has(s);
-      const isMerged   = myGroup.length > 1;
+      const grpName = groupName(myGroup);
+      const isStart = s === startState;
+      const isAccept = acceptSet.has(s);
+      const isMerged = myGroup.length > 1;
       const isNewSplit = newlySplitSet.has(s) && !isMerged;
 
       const tr = document.createElement('tr');
       // Row class for coloring
-      if (isNewSplit)  tr.className = 'merge-row-split';
+      if (isNewSplit) tr.className = 'merge-row-split';
       else if (isMerged) tr.className = 'merge-row-merged';
 
       // Markers cell
       const tdMark = document.createElement('td');
       tdMark.className = 'merge-marker-cell';
       const marks = [];
-      if (isStart)  marks.push('<span class="row-mark start">→</span>');
+      if (isStart) marks.push('<span class="row-mark start">→</span>');
       if (isAccept) marks.push('<span class="row-mark accept">*</span>');
       tdMark.innerHTML = marks.join('');
       tr.appendChild(tdMark);
@@ -340,10 +269,10 @@ window.StepsPanel = (function () {
 
       // Transition cells
       alphabet.forEach(sym => {
-        const td  = document.createElement('td');
+        const td = document.createElement('td');
         const tgt = targetGroup(s, sym);
-        td.textContent  = tgt;
-        td.className    = 'merge-trans-cell';
+        td.textContent = tgt;
+        td.className = 'merge-trans-cell';
         // Highlight if the target is a merged group
         if (tgt.startsWith('{')) td.classList.add('merge-trans-merged');
         tr.appendChild(td);
@@ -378,14 +307,14 @@ window.StepsPanel = (function () {
 
   // ── Dist Table ──────────────────────────────────────────────
   function renderDistTable(step) {
-    const wrap   = document.getElementById('dist-table-wrap');
+    const wrap = document.getElementById('dist-table-wrap');
     const states = _dfa.states;
-    const n      = states.length;
-    const table  = document.createElement('table');
+    const n = states.length;
+    const table = document.createElement('table');
     table.className = 'dist-table';
 
     const thead = document.createElement('thead');
-    const hr    = document.createElement('tr');
+    const hr = document.createElement('tr');
     hr.appendChild(document.createElement('th'));
     for (let j = 0; j < n - 1; j++) {
       const th = document.createElement('th'); th.textContent = states[j]; hr.appendChild(th);
@@ -393,7 +322,7 @@ window.StepsPanel = (function () {
     thead.appendChild(hr);
     table.appendChild(thead);
 
-    const tbody    = document.createElement('tbody');
+    const tbody = document.createElement('tbody');
     const newlySet = new Set(step.newlyMarked.map(([a, b]) => `${a},${b}`));
 
     for (let i = 1; i < n; i++) {
@@ -405,10 +334,10 @@ window.StepsPanel = (function () {
           td.className = 'cell-diag'; td.textContent = '·';
         } else {
           const marked = step.table[j][i];
-          const isNew  = newlySet.has(`${j},${i}`);
-          if (isNew)        { td.className = 'cell-new-mark'; td.textContent = '✕'; td.title = 'Newly marked'; }
-          else if (marked)  { td.className = 'cell-marked';   td.textContent = '✕'; }
-          else              { td.className = 'cell-equiv';    td.textContent = '—'; }
+          const isNew = newlySet.has(`${j},${i}`);
+          if (isNew) { td.className = 'cell-new-mark'; td.textContent = '✕'; td.title = 'Newly marked'; }
+          else if (marked) { td.className = 'cell-marked'; td.textContent = '✕'; }
+          else { td.className = 'cell-equiv'; td.textContent = '—'; }
         }
         tr.appendChild(td);
       }
@@ -444,7 +373,7 @@ window.StepsPanel = (function () {
       const sd = document.createElement('div'); sd.className = 'partition-states';
       group.forEach(s => {
         const chip = document.createElement('span');
-        chip.className   = `p-state${acceptSet.has(s) ? ' accept' : ''}`;
+        chip.className = `p-state${acceptSet.has(s) ? ' accept' : ''}`;
         chip.textContent = s;
         sd.appendChild(chip);
       });
