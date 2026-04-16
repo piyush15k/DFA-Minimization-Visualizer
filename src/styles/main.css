@@ -710,3 +710,102 @@ table.dist-table th { background: #1a1e2a; color: #4fffb0; font-size: 11px; text
     grid-column: 1;
   }
 }
+
+/* ── Merged Transition Table ── */
+.merge-trans-scroll {
+  overflow-x: auto;
+  margin-top: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+table.merge-trans-table {
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  width: 100%;
+  min-width: 320px;
+}
+
+table.merge-trans-table th {
+  background: rgba(255,255,255,0.03);
+  color: var(--accent2);
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  white-space: nowrap;
+}
+table.merge-trans-table th:first-child { width: 32px; }
+
+.merge-col-header {
+  color: #4fffb0 !important;
+  border-left: 1px solid rgba(79,255,176,0.3) !important;
+}
+
+table.merge-trans-table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  vertical-align: middle;
+}
+table.merge-trans-table tr:last-child td { border-bottom: none; }
+
+/* State name column */
+.merge-state-cell {
+  color: var(--accent2);
+  font-weight: 700;
+  text-align: left !important;
+  padding-left: 14px !important;
+}
+
+/* Markers (→ *) */
+.merge-marker-cell { width: 36px; text-align: right !important; padding-right: 2px !important; }
+.row-mark { font-size: 11px; font-weight: 700; }
+.row-mark.start  { color: #00cfff; margin-right: 2px; }
+.row-mark.accept { color: #4fffb0; }
+
+/* Transition value cells */
+.merge-trans-cell { color: var(--text2); }
+.merge-trans-merged {
+  color: #4fffb0 !important;
+  font-weight: 700;
+}
+
+/* Group/merged-into column */
+.merge-group-cell {
+  border-left: 1px solid var(--border) !important;
+  color: var(--text3);
+  font-size: 11px;
+}
+.merge-group-cell.will-merge {
+  color: #4fffb0;
+  font-weight: 700;
+  background: rgba(79,255,176,0.07) !important;
+}
+
+/* Row-level highlight: merged group rows */
+.merge-row-merged td {
+  background: rgba(79,255,176,0.05);
+}
+.merge-row-merged .merge-state-cell {
+  color: #4fffb0;
+}
+
+/* Row-level highlight: newly split rows */
+.merge-row-split td {
+  background: rgba(255,79,123,0.07);
+}
+.merge-row-split .merge-state-cell {
+  color: #ff4f7b;
+}
+
+/* Separator between groups */
+.merge-sep-row td {
+  padding: 0 !important;
+  height: 3px;
+  background: var(--border);
+  border-bottom: none !important;
+}
